@@ -79,13 +79,108 @@ func (node *Node[T]) Find(value T) (*Node[T], error) {
 	return node, nil
 }
 
-func (node *Node[T]) Delete(value T) (*Node[T], error) {
-	if node.Value == value {
-		// Delete node
+func (node *Node[T]) popLeftBiggest() *Node[T] {
+	prev := node
+	node = node.Left
+
+	if node == nil {
+		return nil
 	}
 
-	// Return new node
-	return node, nil
+	if node.Right == nil {
+		prev.Left = node.Left
+		node.Left = nil
+		return node
+	}
+
+	for node.Right != nil {
+		prev = node
+		node = node.Right
+	}
+
+	prev.Right = node.Left
+	node.Left = nil
+
+	return node
+}
+
+func (node *Node[T]) popRightSmallest() *Node[T] {
+	prev := node
+	node = node.Right
+
+	if node == nil {
+		return nil
+	}
+
+	if node.Left == nil {
+		prev.Right = node.Right
+		node.Right = nil
+		return node
+	}
+
+	for node.Left != nil {
+		prev = node
+		node = node.Left
+	}
+
+	prev.Left = node.Right
+	node.Right = nil
+
+	return node
+}
+
+// Returns the new subtree.
+func (node *Node[T]) Remove() *Node[T] {
+	balance := node.getBalance()
+	var subs *Node[T]
+
+	switch {
+	case balance > 0:
+		subs = node.popLeftBiggest()
+	case balance < 0:
+		subs = node.popRightSmallest()
+	case node.Left != nil:
+		subs = node.popLeftBiggest()
+	case node.Right != nil:
+		subs = node.popRightSmallest()
+	}
+
+	if subs != nil {
+		if subs != node.Left {
+			subs.Left = node.Left
+		}
+		if subs != node.Right {
+			subs.Right = node.Right
+		}
+		node.Left, node.Right = nil, nil
+		subs = subs.rebalance()
+	}
+
+	return subs
+}
+
+// Returns the new subtree.
+func (node *Node[T]) RemoveWith(value T) (*Node[T], error) {
+	if node == nil {
+		return nil, fmt.Errorf("no such node with value: %v", value)
+	}
+
+	if value < node.Value {
+		left, err := node.Left.RemoveWith(value)
+		node.Left = left
+		node = node.rebalance()
+		return node, err
+	}
+
+	if value > node.Value {
+		right, err := node.Right.RemoveWith(value)
+		node.Right = right
+		node = node.rebalance()
+		return node, err
+	}
+
+	// value == node.Value
+	return node.Remove(), nil
 }
 
 func (node *Node[T]) rebalance() *Node[T] {
